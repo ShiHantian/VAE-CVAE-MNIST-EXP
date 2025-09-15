@@ -115,3 +115,73 @@ class Decoder(nn.Module):
         x = self.MLP(z)
 
         return x
+
+class AEEncoder(nn.Module):
+
+    def __init__(self, layer_sizes, latent_size, conditional, num_labels):
+
+        super().__init__()
+
+        self.conditional = conditional
+        if self.conditional:
+            layer_sizes[0] += num_labels
+
+        self.MLP = nn.Sequential()
+
+        for i, (in_size, out_size) in enumerate(zip(layer_sizes[:-1], layer_sizes[1:])):
+            self.MLP.add_module(
+                name="L{:d}".format(i), module=nn.Linear(in_size, out_size))
+            self.MLP.add_module(name="A{:d}".format(i), module=nn.ReLU())
+
+        self.linear_means = nn.Linear(layer_sizes[-1], latent_size)
+
+    def forward(self, x, c=None):
+
+        if self.conditional:
+            c = idx2onehot(c, n=10)
+            x = torch.cat((x, c), dim=-1)
+
+        x = self.MLP(x)
+
+        means = self.linear_means(x)
+
+        return means
+    
+class AE(nn.Module):
+
+    def __init__(self, encoder_layer_sizes, latent_size, decoder_layer_sizes,
+                 conditional=False, num_labels=0):
+
+        super().__init__()
+
+        if conditional:
+            assert num_labels > 0
+
+        assert type(encoder_layer_sizes) == list
+        assert type(latent_size) == int
+        assert type(decoder_layer_sizes) == list
+
+        self.latent_size = latent_size
+
+        self.encoder = AEEncoder(
+            encoder_layer_sizes, latent_size, conditional, num_labels)
+        self.decoder = Decoder(
+            decoder_layer_sizes, latent_size, conditional, num_labels)
+
+    def forward(self, x, c=None):
+
+        if x.dim() > 2:
+            x = x.view(-1, 28*28)
+
+        z = self.encoder(x, c)
+        
+        recon_x = self.decoder(z, c)
+
+        return recon_x, z
+
+
+    def inference(self, z, c=None):
+
+        recon_x = self.decoder(z, c)
+
+        return recon_x
