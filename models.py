@@ -115,7 +115,6 @@ class Decoder(nn.Module):
         x = self.MLP(z)
 
         return x
-
 class AEEncoder(nn.Module):
 
     def __init__(self, layer_sizes, latent_size, conditional, num_labels):
