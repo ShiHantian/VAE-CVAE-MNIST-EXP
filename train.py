@@ -291,7 +291,8 @@ def decoder_main(args):
 
             x, y = x.to(device), y.to(device)
 
-            z = torch.zeros(x.size(0), args.latent_size).to(device)
+            # z = torch.zeros(x.size(0), args.latent_size).to(device)
+            z = torch.randn(x.size(0), args.latent_size).to(device)
 
             if args.conditional:
                 recon_x = decoder(z, y)
