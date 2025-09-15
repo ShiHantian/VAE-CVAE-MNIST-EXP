@@ -160,7 +160,7 @@ def main(args):
 
         # print(f"BCE: {BCE}, KLD: {KLD}")
 
-        return (BCE + KLD) / x.size(0)
+        return BCE / x.size(0), (BCE + KLD) / x.size(0)
 
     vae = VAE(
         encoder_layer_sizes=args.encoder_layer_sizes,
@@ -172,6 +172,9 @@ def main(args):
     optimizer = torch.optim.Adam(vae.parameters(), lr=args.learning_rate)
 
     logs = defaultdict(list)
+
+    print("Starting original CVAE training")
+    start_time = time.time()
 
     for epoch in range(args.epochs):
 
@@ -192,7 +195,7 @@ def main(args):
                 tracker_epoch[id]['y'] = z[i, 1].item()
                 tracker_epoch[id]['label'] = yi.item()
 
-            loss = loss_fn(recon_x, x, mean, log_var)
+            recon_loss, loss = loss_fn(recon_x, x, mean, log_var)
 
             optimizer.zero_grad()
             loss.backward()
@@ -201,8 +204,8 @@ def main(args):
             logs['loss'].append(loss.item())
 
             if iteration % args.print_every == 0 or iteration == len(data_loader)-1:
-                print("Epoch {:02d}/{:02d} Batch {:04d}/{:d}, Loss {:9.4f}".format(
-                    epoch, args.epochs, iteration, len(data_loader)-1, loss.item()))
+                print("Epoch {:02d}/{:02d} Batch {:04d}/{:d}, Loss {:9.4f}, ReconLoss {:9.4f}".format(
+                    epoch, args.epochs, iteration, len(data_loader)-1, loss.item(), recon_loss.item()))
 
                 if args.conditional:
                     c = torch.arange(0, 10).long().unsqueeze(1).to(device)
@@ -242,6 +245,11 @@ def main(args):
         g.savefig(os.path.join(
             args.fig_root, str(ts), "E{:d}-Dist.png".format(epoch)),
             dpi=300)
+    
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Original CVAE Training completed in {elapsed_time} seconds")
+
         
 def decoder_main(args):
 
@@ -282,6 +290,9 @@ def decoder_main(args):
     optimizer = torch.optim.Adam(params=decoder.parameters(), lr=args.learning_rate)
 
     logs = defaultdict(list)
+
+    print("Starting decoder training")
+    start_time = time.time()
 
     for epoch in range(args.epochs):
 
@@ -352,6 +363,11 @@ def decoder_main(args):
         g.savefig(os.path.join(
             args.fig_root, str(ts), "E{:d}-Dist.png".format(epoch)),
             dpi=300)
+    
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Decoder Only Training completed in {elapsed_time} seconds")
+        
 
 if __name__ == '__main__':
 
@@ -369,4 +385,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    decoder_main(args)
+    main(args)
